@@ -2,10 +2,28 @@ import { Friend } from '@/types';
 import fs from 'fs';
 import path from 'path';
 
-const DATA_FILE = path.join(process.cwd(), 'src', 'data', 'friends.json');
+// Railway: use /data if volume mounted, otherwise fallback to local data dir
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+const DATA_FILE = path.join(DATA_DIR, 'friends.json');
+const SEED_FILE = path.join(process.cwd(), 'src', 'data', 'friends.json');
+
+function ensureDataFile(): void {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  if (!fs.existsSync(DATA_FILE)) {
+    // Copy seed data on first run
+    if (fs.existsSync(SEED_FILE)) {
+      fs.copyFileSync(SEED_FILE, DATA_FILE);
+    } else {
+      fs.writeFileSync(DATA_FILE, '[]', 'utf-8');
+    }
+  }
+}
 
 export function getFriends(): Friend[] {
   try {
+    ensureDataFile();
     const raw = fs.readFileSync(DATA_FILE, 'utf-8');
     return JSON.parse(raw);
   } catch {
@@ -24,6 +42,7 @@ export function getFriendById(id: string): Friend | undefined {
 }
 
 export function saveFriends(friends: Friend[]): void {
+  ensureDataFile();
   fs.writeFileSync(DATA_FILE, JSON.stringify(friends, null, 2), 'utf-8');
 }
 
